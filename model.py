@@ -1,4 +1,5 @@
 import requests
+import time
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -18,24 +19,31 @@ def get_live_data(city_name):
     lat, lon = CITIES[city_name]
     
     weather_url = (
-        f"https://api.open-meteo.com/v1/forecast?"
+        f"https://open-meteo.com?"
         f"latitude={lat}&longitude={lon}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
         f"&past_days=7&forecast_days=1"
     )
     aqi_url = (
-        f"https://air-quality-api.open-meteo.com/v1/air-quality?"
+        f"https://open-meteo.com?"
         f"latitude={lat}&longitude={lon}&hourly=pm10,pm2_5,us_aqi"
         f"&past_days=7&forecast_days=1"
     )
     
-    w_res = requests.get(weather_url, timeout=15).json()
-    a_res = requests.get(aqi_url, timeout=15).json()
-    
-    df_weather = pd.DataFrame(w_res["hourly"])
-    df_aqi = pd.DataFrame(a_res["hourly"])
-    
-    df = pd.merge(df_weather, df_aqi, on="time").dropna()
-    return df
+    # 3 baar retry karega aur timeout 30 second rakha hai
+    for attempt in range(3):
+        try:
+            w_res = requests.get(weather_url, timeout=30).json()
+            a_res = requests.get(aqi_url, timeout=30).json()
+            
+            df_weather = pd.DataFrame(w_res["hourly"])
+            df_aqi = pd.DataFrame(a_res["hourly"])
+            
+            df = pd.merge(df_weather, df_aqi, on="time").dropna()
+            return df
+        except requests.exceptions.RequestException:
+            if attempt == 2:
+                raise  # 3 baar fail hone par hi error dikhayega
+            time.sleep(2)  # 2 second ruk kar dobara try karega
 
 def train_aqi_model(df):
     features = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "pm10", "pm2_5"]
