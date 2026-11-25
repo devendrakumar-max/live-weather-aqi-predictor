@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
+from sklearn.tree import export_text
 
 # Indian Cities Coordinates (Latitude, Longitude)
 CITIES = {
@@ -45,6 +46,11 @@ def train_aqi_model(df):
     
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
+
+    # 100 trees mein se pehle tree (index 0) ke andar ke if-else rules dekhna
+    tree_rules = export_text(model.estimators_[0], feature_names=features)
+    print(tree_rules[:500])  # Shuruat ke 500 characters print karega
+
     
     mae = mean_absolute_error(y_test, model.predict(X_test))
     return model, mae, features
