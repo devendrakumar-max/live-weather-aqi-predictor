@@ -17,33 +17,52 @@ CITIES = {
 
 def get_live_data(city_name):
     lat, lon = CITIES[city_name]
-    
-    weather_url = (
-        f"https://open-meteo.com?"
-        f"latitude={lat}&longitude={lon}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
-        f"&past_days=7&forecast_days=1"
-    )
-    aqi_url = (
-        f"https://open-meteo.com?"
-        f"latitude={lat}&longitude={lon}&hourly=pm10,pm2_5,us_aqi"
-        f"&past_days=7&forecast_days=1"
-    )
-    
-    # 3 baar retry karega aur timeout 30 second rakha hai
+
+    weather_url = "https://api.open-meteo.com/v1/forecast"
+    aqi_url = "https://air-quality-api.open-meteo.com/v1/air-quality"
+
+    weather_params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+        "past_days": 7,
+        "forecast_days": 1,
+        "timezone": "auto",
+    }
+    aqi_params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "pm10,pm2_5,us_aqi",
+        "past_days": 7,
+        "forecast_days": 1,
+        "timezone": "auto",
+    }
+
     for attempt in range(3):
         try:
-            w_res = requests.get(weather_url, timeout=30).json()
-            a_res = requests.get(aqi_url, timeout=30).json()
-            
+            w_response = requests.get(weather_url, params=weather_params, timeout=30)
+            w_response.raise_for_status()
+            w_res = w_response.json()
+
+            a_response = requests.get(aqi_url, params=aqi_params, timeout=30)
+            a_response.raise_for_status()
+            a_res = a_response.json()
+
+            if "hourly" not in w_res or "hourly" not in a_res:
+                raise ValueError(f"Open-Meteo response is missing hourly data: {w_res} {a_res}")
+
             df_weather = pd.DataFrame(w_res["hourly"])
             df_aqi = pd.DataFrame(a_res["hourly"])
-            
             df = pd.merge(df_weather, df_aqi, on="time").dropna()
+
+            if df.empty:
+                raise ValueError(f"No matching weather and AQI records returned for {city_name}")
+
             return df
-        except requests.exceptions.RequestException:
+        except (requests.exceptions.RequestException, ValueError):
             if attempt == 2:
-                raise  # 3 baar fail hone par hi error dikhayega
-            time.sleep(2)  # 2 second ruk kar dobara try karega
+                raise
+            time.sleep(2)
 
 def train_aqi_model(df):
     features = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "pm10", "pm2_5"]
