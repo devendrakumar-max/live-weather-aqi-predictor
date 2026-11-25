@@ -52,3 +52,13 @@ st.divider()
 st.subheader(f"📈 {selected_city} Ka Pichhle 7 Din Ka Live AQI Trend")
 chart_data = df.set_index("time")[["us_aqi", "pm2_5"]]
 st.line_chart(chart_data)
+# DataFrame ko CSV text mein badalna
+csv_data = df.to_csv(index=False).encode("utf-8")
+
+# Screen par Download Button dikhana
+st.download_button(
+    label=f"📥 {selected_city} Ka Live Data (CSV) Download Karein",
+    data=csv_data,
+    file_name=f"{selected_city.lower()}_weather_aqi_data.csv",
+    mime="text/csv"
+)
