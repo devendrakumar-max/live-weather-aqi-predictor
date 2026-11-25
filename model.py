@@ -73,11 +73,6 @@ def train_aqi_model(df):
     
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-
-    # 100 trees mein se pehle tree (index 0) ke andar ke if-else rules dekhna
-    tree_rules = export_text(model.estimators_[0], feature_names=features)
-    print(tree_rules[:500])  # Shuruat ke 500 characters print karega
-
     
     mae = mean_absolute_error(y_test, model.predict(X_test))
     return model, mae, features
